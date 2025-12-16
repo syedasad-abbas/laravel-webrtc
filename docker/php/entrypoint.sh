@@ -23,4 +23,19 @@ if [ ! -f "$FLAG_FILE" ]; then
     touch "$FLAG_FILE"
 fi
 
+if [ -f "$APP_DIR/.env" ]; then
+    target_url=${APP_URL:-https://localhost:8443}
+    if grep -q '^APP_URL=' "$APP_DIR/.env"; then
+        sed -i "s|^APP_URL=.*|APP_URL=${target_url}|" "$APP_DIR/.env"
+    else
+        printf '\nAPP_URL=%s\n' "$target_url" >>"$APP_DIR/.env"
+    fi
+
+    if grep -q '^SESSION_DRIVER=' "$APP_DIR/.env"; then
+        sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' "$APP_DIR/.env"
+    else
+        printf '\nSESSION_DRIVER=file\n' >>"$APP_DIR/.env"
+    fi
+fi
+
 exec "$@"

@@ -13,8 +13,17 @@ const io = new Server(server, {
   }
 });
 
+const participants = new Map();
+
+function emitParticipants(room) {
+  const roomMap = participants.get(room);
+  const payload = roomMap ? Array.from(roomMap.values()) : [];
+  io.to(room).emit('participants', payload);
+}
+
 io.on('connection', socket => {
   const room = socket.handshake.query.room;
+  const name = (socket.handshake.query.name || '').toString().trim().slice(0, 60) || 'Guest';
 
   if (!room) {
     socket.emit('error', { message: 'Room missing' });
@@ -23,14 +32,19 @@ io.on('connection', socket => {
   }
 
   socket.join(room);
-  const roomClients = io.sockets.adapter.rooms.get(room) || new Set();
-  const isInitiator = roomClients.size === 1;
 
+  if (!participants.has(room)) {
+    participants.set(room, new Map());
+  }
+  const roomMap = participants.get(room);
+  roomMap.set(socket.id, { id: socket.id, name });
+
+  const isInitiator = roomMap.size === 1;
   socket.emit('init', { isInitiator });
 
-  io.to(room).emit('participants', { count: roomClients.size });
+  emitParticipants(room);
 
-  if (roomClients.size > 1) {
+  if (roomMap.size > 1) {
     io.to(room).emit('ready');
   }
 
@@ -48,9 +62,14 @@ io.on('connection', socket => {
 
   socket.on('disconnect', () => {
     socket.to(room).emit('peer-left');
-    const updatedRoom = io.sockets.adapter.rooms.get(room);
-    const count = updatedRoom ? updatedRoom.size : 0;
-    io.to(room).emit('participants', { count });
+    const roomMap = participants.get(room);
+    if (roomMap) {
+      roomMap.delete(socket.id);
+      if (!roomMap.size) {
+        participants.delete(room);
+      }
+    }
+    emitParticipants(room);
   });
 });
 

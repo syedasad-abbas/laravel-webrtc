@@ -15,6 +15,15 @@
                     placeholder="e.g. product-sync"
                     maxlength="40"
                 >
+                <label for="participant_name_create">Your display name</label>
+                <input
+                    id="participant_name_create"
+                    type="text"
+                    name="participant_name"
+                    placeholder="Jane Doe"
+                    maxlength="40"
+                    required
+                >
                 <button type="submit">Create meeting</button>
             </form>
         </div>
@@ -31,6 +40,15 @@
                     type="text"
                     name="room"
                     placeholder="room code"
+                    required
+                >
+                <label for="participant_name_join">Your display name</label>
+                <input
+                    id="participant_name_join"
+                    type="text"
+                    name="participant_name"
+                    placeholder="Jane Doe"
+                    maxlength="40"
                     required
                 >
                 <button type="submit">Join</button>

@@ -116,10 +116,36 @@ button:hover {
     font-weight: 500;
 }
 
+.audio-only-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+}
+
+.audio-only-toggle button {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    border-radius: 999px;
+    background: #e0e7ff;
+    color: #312e81;
+}
+
+.audio-only-indicator {
+    font-size: 0.85rem;
+    color: #059669;
+    font-weight: 600;
+}
+
 .video-grid {
     display: grid;
     gap: 1rem;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.video-wrapper {
+    position: relative;
 }
 
 video {
@@ -128,6 +154,17 @@ video {
     border-radius: 16px;
     min-height: 220px;
     object-fit: cover;
+}
+
+.name-badge {
+    position: absolute;
+    left: 1rem;
+    bottom: 1rem;
+    background: rgba(17, 24, 39, 0.85);
+    color: #fff;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
 }
 
 .controls {
@@ -155,6 +192,82 @@ video {
 
 .muted {
     color: #667085;
+}
+
+.call-timer {
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 1rem;
+}
+
+.name-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.name-modal {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 16px;
+    width: min(420px, 90%);
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.2);
+}
+
+.name-modal form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+[data-device-modal] {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 120;
+}
+
+.device-modal-body {
+    background: #fff;
+    padding: 1.5rem;
+    border-radius: 16px;
+    width: min(520px, 95%);
+    box-shadow: 0 25px 50px rgba(15, 23, 42, 0.3);
+}
+
+.device-modal-body video {
+    width: 100%;
+    border-radius: 12px;
+    margin-top: 1rem;
+}
+
+.device-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1rem;
+}
+
+.audio-meter {
+    margin-top: 1rem;
+    height: 10px;
+    background: #e4e7ec;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.audio-meter-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #22c55e, #ef4444);
+    transition: width 0.1s ease-out;
 }
 
 @media (max-width: 640px) {
