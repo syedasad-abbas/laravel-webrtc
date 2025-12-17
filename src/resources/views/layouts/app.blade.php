@@ -12,10 +12,28 @@
     <header class="app-header">
         <div class="container header-content">
             <a href="{{ route('home') }}" class="brand">{{ config('app.name', 'Laravel WebRTC') }}</a>
-            <span class="tagline">Minimal WebRTC meetings</span>
+            <div class="header-meta">
+                <span class="tagline">Minimal WebRTC meetings</span>
+                <div class="auth-actions">
+                    @auth
+                        <span class="current-user">{{ auth()->user()->name }}</span>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit" class="link-button">Log out</button>
+                        </form>
+                    @else
+                        <a href="{{ route('login') }}" class="link-button">Log in</a>
+                    @endauth
+                </div>
+            </div>
         </div>
     </header>
     <main class="container">
+        @if (session('success'))
+            <div class="alert alert-success">
+                {{ session('success') }}
+            </div>
+        @endif
         @if (session('error'))
             <div class="alert alert-error">
                 {{ session('error') }}

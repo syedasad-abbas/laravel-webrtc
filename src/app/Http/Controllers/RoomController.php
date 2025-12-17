@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -11,7 +12,11 @@ class RoomController extends Controller
 {
     public function index(): View
     {
-        return view('home');
+        $activeUsers = User::currentlyActive()->orderBy('name')->get();
+
+        return view('home', [
+            'activeUsers' => $activeUsers,
+        ]);
     }
 
     public function store(Request $request): RedirectResponse

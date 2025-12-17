@@ -38,4 +38,21 @@ if [ -f "$APP_DIR/.env" ]; then
     fi
 fi
 
+if [ -f "$APP_DIR/artisan" ]; then
+    echo "Running database migrations..."
+    for attempt in $(seq 1 5); do
+        if php artisan migrate --force --seed; then
+            break
+        fi
+
+        if [ "$attempt" -eq 5 ]; then
+            echo "Database migrations failed after ${attempt} attempts."
+            exit 1
+        fi
+
+        echo "Migration attempt ${attempt} failed; waiting for database..."
+        sleep 5
+    done
+fi
+
 exec "$@"

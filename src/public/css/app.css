@@ -24,6 +24,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1rem;
 }
 
 .brand {
@@ -33,9 +34,44 @@ body {
     letter-spacing: 0.03em;
 }
 
+.header-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
 .tagline {
     font-size: 0.9rem;
     color: rgba(255, 255, 255, 0.7);
+}
+
+.auth-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.auth-actions form {
+    margin: 0;
+}
+
+.current-user {
+    font-weight: 600;
+}
+
+.link-button {
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 999px;
+    padding: 0.35rem 1rem;
+    color: #fdfdfd;
+    text-decoration: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.link-button:hover {
+    background: rgba(255, 255, 255, 0.12);
 }
 
 .panel {
@@ -56,11 +92,16 @@ body {
     margin-top: 1rem;
 }
 
-input[type="text"] {
+input[type="text"],
+input[type="email"],
+input[type="password"],
+select {
     padding: 0.8rem 1rem;
     border-radius: 12px;
     border: 1px solid #d0d5dd;
     font-size: 1rem;
+    background: #fff;
+    font-family: inherit;
 }
 
 input[readonly] {
@@ -86,6 +127,21 @@ button {
 button:hover {
     transform: translateY(-1px);
     box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2);
+}
+
+button.link-button {
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    padding: 0.35rem 1rem;
+    background: transparent;
+    font-size: 0.9rem;
+    box-shadow: none;
+    transform: none;
+}
+
+button.link-button:hover {
+    box-shadow: none;
+    transform: none;
+    background: rgba(255, 255, 255, 0.12);
 }
 
 .room-header {
@@ -116,6 +172,20 @@ button:hover {
     font-weight: 500;
 }
 
+.call-alert {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 12px;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    color: #9a3412;
+}
+
+.call-alert strong {
+    display: block;
+    margin-bottom: 0.2rem;
+}
+
 .video-grid {
     display: grid;
     gap: 1rem;
@@ -142,6 +212,41 @@ video {
     min-width: 120px;
 }
 
+.pending-requests {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border: 1px dashed #d0d5dd;
+    border-radius: 12px;
+    background: #f9fafb;
+}
+
+.pending-requests h3 {
+    margin-top: 0;
+}
+
+.pending-requests ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.pending-requests li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 0;
+}
+
+.pending-requests button {
+    flex: 0 0 auto;
+    min-width: auto;
+    padding: 0.4rem 1rem;
+}
+
 .alert {
     padding: 0.8rem 1rem;
     border-radius: 12px;
@@ -153,8 +258,43 @@ video {
     color: #991b1b;
 }
 
+.alert-success {
+    background: #dcfce7;
+    color: #166534;
+}
+
 .muted {
     color: #667085;
+}
+
+.active-users {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.active-users li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #16a34a;
+    box-shadow: 0 0 10px rgba(22, 163, 74, 0.8);
+    display: inline-block;
+}
+
+.auth-panel {
+    max-width: 520px;
+    margin: 0 auto;
 }
 
 @media (max-width: 640px) {
