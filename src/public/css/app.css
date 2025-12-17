@@ -186,6 +186,26 @@ button.link-button:hover {
     margin-bottom: 0.2rem;
 }
 
+.host-alert {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+}
+
+.host-alert-action {
+    margin-top: 0.5rem;
+    border: none;
+    border-radius: 999px;
+    padding: 0.5rem 1.2rem;
+    background: #2563eb;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.host-alert-action:hover {
+    background: #1d4ed8;
+}
+
 .video-grid {
     display: grid;
     gap: 1rem;

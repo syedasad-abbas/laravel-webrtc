@@ -18,6 +18,7 @@
     const hostRequestsList = document.querySelector('[data-request-list]');
     const hostJoinAlert = document.querySelector('[data-join-alert]');
     const hostJoinAlertText = hostJoinAlert?.querySelector('[data-join-alert-text]');
+    const hostAlertApproveButton = hostJoinAlert?.querySelector('[data-action="approve-alert-request"]');
 
     let socket;
     let peerConnection;
@@ -28,6 +29,8 @@
     let hasActiveCall = false;
     let isHost = !!config.isHost;
     let isAudioOnlyMode = false;
+
+    const pendingApprovals = new Map();
 
     const iceServers = [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -41,7 +44,7 @@
     }
 
     function showWaitingApproval(message) {
-        if (!waitingApprovalBanner) {
+        if (isHost || !waitingApprovalBanner) {
             return;
         }
         waitingApprovalBanner.hidden = false;
@@ -52,17 +55,17 @@
     }
 
     function hideWaitingApproval() {
-        if (waitingApprovalBanner) {
-            waitingApprovalBanner.hidden = true;
+        if (!waitingApprovalBanner) {
+            return;
         }
+        waitingApprovalBanner.hidden = true;
     }
 
     function clearHostRequests() {
-        if (!hostRequestsList) {
-            hideHostRequestNotice();
-            return;
+        pendingApprovals.clear();
+        if (hostRequestsList) {
+            hostRequestsList.innerHTML = '';
         }
-        hostRequestsList.innerHTML = '';
         if (hostRequestsPanel) {
             hostRequestsPanel.hidden = true;
         }
@@ -85,33 +88,66 @@
         }
     }
 
-    function addHostRequest(request) {
-        if (!hostRequestsList || !hostRequestsPanel || !request?.id) {
+    function updateHostAlert() {
+        if (!hostJoinAlert) {
             return;
         }
-        removeHostRequest(request.id);
-        hostRequestsPanel.hidden = false;
-        const item = document.createElement('li');
-        item.dataset.requestId = request.id;
+        if (!pendingApprovals.size) {
+            hideHostRequestNotice();
+            if (hostAlertApproveButton) {
+                hostAlertApproveButton.removeAttribute('data-socket');
+            }
+            return;
+        }
+        const [nextId, name] = pendingApprovals.entries().next().value;
+        hostJoinAlert.hidden = false;
+        if (hostJoinAlertText) {
+            hostJoinAlertText.textContent = `${name} wants to join.`;
+        }
+        if (hostAlertApproveButton) {
+            hostAlertApproveButton.dataset.socket = nextId;
+        }
+    }
+
+    function approveParticipant(socketId) {
+        if (!socketId || !socket) {
+            return;
+        }
+        socket.emit('approve-join', { id: socketId });
+        removeHostRequest(socketId);
+    }
+
+    function addHostRequest(request) {
+        if (!request?.id) {
+            return;
+        }
         const name = request.name || 'Guest';
-        item.innerHTML = `<span>${name}</span>
-            <button type="button" data-action="approve-request" data-socket="${request.id}">Allow</button>`;
-        hostRequestsList.appendChild(item);
+        if (hostRequestsList && hostRequestsPanel) {
+            removeHostRequest(request.id);
+            hostRequestsPanel.hidden = false;
+            const item = document.createElement('li');
+            item.dataset.requestId = request.id;
+            item.innerHTML = `<span>${name}</span>
+                <button type="button" data-action="approve-request" data-socket="${request.id}">Allow</button>`;
+            hostRequestsList.appendChild(item);
+        }
+        pendingApprovals.set(request.id, name);
         showHostRequestNotice(`${name} wants to join.`);
+        updateHostAlert();
     }
 
     function removeHostRequest(id) {
-        if (!hostRequestsList) {
-            return;
+        if (hostRequestsList) {
+            const node = hostRequestsList.querySelector(`[data-request-id="${id}"]`);
+            if (node) {
+                node.remove();
+            }
+            if (!hostRequestsList.children.length && hostRequestsPanel) {
+                hostRequestsPanel.hidden = true;
+            }
         }
-        const node = hostRequestsList.querySelector(`[data-request-id="${id}"]`);
-        if (node) {
-            node.remove();
-        }
-        if (!hostRequestsList.children.length && hostRequestsPanel) {
-            hostRequestsPanel.hidden = true;
-            hideHostRequestNotice();
-        }
+        pendingApprovals.delete(id);
+        updateHostAlert();
     }
 
     function initSocket() {
@@ -138,6 +174,7 @@
             if (isHost) {
                 hideWaitingApproval();
                 setStatus('Connected. Waiting for participants…');
+                updateHostAlert();
             } else {
                 clearHostRequests();
                 if (hasActiveCall) {
@@ -430,8 +467,12 @@
         if (!socketId) {
             return;
         }
-        socket.emit('approve-join', { id: socketId });
-        removeHostRequest(socketId);
+        approveParticipant(socketId);
+    });
+
+    hostAlertApproveButton?.addEventListener('click', () => {
+        const socketId = hostAlertApproveButton.getAttribute('data-socket');
+        approveParticipant(socketId);
     });
 
     window.addEventListener('beforeunload', () => {

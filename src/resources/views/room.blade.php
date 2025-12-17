@@ -21,9 +21,10 @@
                 <p>Waiting for the host to allow you in.</p>
             </div>
             @if ($isHost ?? false)
-                <div class="call-alert" data-join-alert hidden>
+                <div class="call-alert host-alert" data-join-alert hidden>
                     <strong>Join request</strong>
                     <p data-join-alert-text>A participant is waiting for approval.</p>
+                    <button type="button" class="host-alert-action" data-action="approve-alert-request">Allow from here</button>
                 </div>
             @endif
             <div class="video-grid">
