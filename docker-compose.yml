@@ -16,11 +16,16 @@ services:
     environment:
       APP_ENV: local
       APP_DEBUG: ${APP_DEBUG:-true}
-      APP_URL: ${APP_URL:-https://192.168.1.47:8443}
+      APP_URL: ${APP_URL:-https://192.168.1.74:8443}
       APP_PORT: ${APP_PORT:-8443}
       LOG_CHANNEL: stderr
-      APP_DOMAIN: ${APP_DOMAIN:-192.168.1.27}
+      APP_DOMAIN: ${APP_DOMAIN:-192.168.1.74}
+      DB_HOST: ${DB_HOST:-mariadb}
+      DB_DATABASE: ${DB_DATABASE:-webrtc}
+      DB_USERNAME: ${DB_USERNAME:-webrtc}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
     depends_on:
+      - mariadb
       - signaling
     networks:
       - laravel-webrtc
@@ -47,6 +52,21 @@ services:
       LETSENCRYPT_DOMAIN: ${LETSENCRYPT_DOMAIN:-}
       APP_DOMAIN: ${APP_DOMAIN:-localhost}
       APP_PORT: ${APP_PORT:-8443}
+
+  mariadb:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-secret}
+      MARIADB_DATABASE: ${DB_DATABASE:-webrtc}
+      MARIADB_USER: ${DB_USERNAME:-webrtc}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    ports:
+      - ${DB_FORWARD_PORT:-3306}:3306
+    networks:
+      - laravel-webrtc
 
   signaling:
     build:
@@ -97,3 +117,6 @@ services:
       "
     networks:
       - laravel-webrtc
+
+volumes:
+  mariadb-data:
