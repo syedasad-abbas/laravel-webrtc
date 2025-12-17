@@ -13,6 +13,9 @@
     const statusEl = document.getElementById('call-status');
     const localVideo = document.getElementById('localVideo');
     const remoteVideo = document.getElementById('remoteVideo');
+    const waitingApprovalBanner = document.querySelector('[data-waiting-approval]');
+    const hostRequestsPanel = document.querySelector('[data-host-requests]');
+    const hostRequestsList = document.querySelector('[data-request-list]');
 
     let socket;
     let peerConnection;
@@ -21,6 +24,8 @@
     let isInitiator = false;
     let readyForOffer = false;
     let hasActiveCall = false;
+    let isHost = false;
+    let isAudioOnlyMode = false;
 
     const iceServers = [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -30,6 +35,59 @@
     function setStatus(message) {
         if (statusEl) {
             statusEl.textContent = message;
+        }
+    }
+
+    function showWaitingApproval(message) {
+        if (!waitingApprovalBanner) {
+            return;
+        }
+        waitingApprovalBanner.hidden = false;
+        const textEl = waitingApprovalBanner.querySelector('p');
+        if (textEl && message) {
+            textEl.textContent = message;
+        }
+    }
+
+    function hideWaitingApproval() {
+        if (waitingApprovalBanner) {
+            waitingApprovalBanner.hidden = true;
+        }
+    }
+
+    function clearHostRequests() {
+        if (hostRequestsList) {
+            hostRequestsList.innerHTML = '';
+        }
+        if (hostRequestsPanel) {
+            hostRequestsPanel.hidden = true;
+        }
+    }
+
+    function addHostRequest(request) {
+        if (!hostRequestsList || !hostRequestsPanel || !request?.id) {
+            return;
+        }
+        removeHostRequest(request.id);
+        hostRequestsPanel.hidden = false;
+        const item = document.createElement('li');
+        item.dataset.requestId = request.id;
+        const name = request.name || 'Guest';
+        item.innerHTML = `<span>${name}</span>
+            <button type="button" data-action="approve-request" data-socket="${request.id}">Allow</button>`;
+        hostRequestsList.appendChild(item);
+    }
+
+    function removeHostRequest(id) {
+        if (!hostRequestsList) {
+            return;
+        }
+        const node = hostRequestsList.querySelector(`[data-request-id="${id}"]`);
+        if (node) {
+            node.remove();
+        }
+        if (!hostRequestsList.children.length && hostRequestsPanel) {
+            hostRequestsPanel.hidden = true;
         }
     }
 
@@ -45,6 +103,13 @@
 
         socket.on('init', payload => {
             isInitiator = !!payload?.isInitiator;
+        });
+
+        socket.on('host', payload => {
+            isHost = !!payload?.isHost;
+            if (!isHost) {
+                clearHostRequests();
+            }
         });
 
         socket.on('ready', () => {
@@ -91,6 +156,36 @@
                 setStatus(`Participants in room: ${payload.count}`);
             }
         });
+
+        socket.on('join-request', request => {
+            if (!isHost) {
+                return;
+            }
+            addHostRequest(request);
+            setStatus('A participant is requesting to join.');
+        });
+
+        socket.on('waiting-approval', () => {
+            showWaitingApproval('Waiting for host approval…');
+            setStatus('Ask to join. Waiting for host approval…');
+        });
+
+        socket.on('join-approved', () => {
+            hideWaitingApproval();
+            setStatus('Host approved you. Connecting…');
+        });
+
+        socket.on('promoted-host', () => {
+            isHost = true;
+            setStatus('You are now the host.');
+        });
+
+        socket.on('join-request-resolved', payload => {
+            if (!payload?.id) {
+                return;
+            }
+            removeHostRequest(payload.id);
+        });
     }
 
     async function startCall(options = {}) {
@@ -99,6 +194,7 @@
         }
 
         const wantsVideo = options.video !== false;
+        isAudioOnlyMode = !wantsVideo;
 
         try {
             localStream = await navigator.mediaDevices.getUserMedia({
@@ -180,8 +276,12 @@
         if (!localStream) {
             return;
         }
-        const enabled = localStream.getVideoTracks().every(track => track.enabled);
-        localStream.getVideoTracks().forEach(track => {
+        const tracks = localStream.getVideoTracks();
+        if (!tracks.length) {
+            return;
+        }
+        const enabled = tracks.every(track => track.enabled);
+        tracks.forEach(track => {
             track.enabled = !enabled;
         });
         refreshVideoButtonState();
@@ -213,6 +313,9 @@
         if (disconnectSocket && socket) {
             socket.disconnect();
         }
+
+        hideWaitingApproval();
+        isAudioOnlyMode = false;
         refreshVideoButtonState();
     }
 
@@ -258,6 +361,19 @@
         setStatus('Call ended.');
     });
     copyButton?.addEventListener('click', copyLink);
+
+    hostRequestsList?.addEventListener('click', event => {
+        const button = event.target.closest('[data-action="approve-request"]');
+        if (!button || !socket) {
+            return;
+        }
+        const socketId = button.getAttribute('data-socket');
+        if (!socketId) {
+            return;
+        }
+        socket.emit('approve-join', { id: socketId });
+        removeHostRequest(socketId);
+    });
 
     window.addEventListener('beforeunload', () => {
         endCall(true);

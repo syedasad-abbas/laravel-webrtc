@@ -172,6 +172,20 @@ button.link-button:hover {
     font-weight: 500;
 }
 
+.call-alert {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 12px;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    color: #9a3412;
+}
+
+.call-alert strong {
+    display: block;
+    margin-bottom: 0.2rem;
+}
+
 .video-grid {
     display: grid;
     gap: 1rem;
@@ -196,6 +210,41 @@ video {
 .controls button {
     flex: 1;
     min-width: 120px;
+}
+
+.pending-requests {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border: 1px dashed #d0d5dd;
+    border-radius: 12px;
+    background: #f9fafb;
+}
+
+.pending-requests h3 {
+    margin-top: 0;
+}
+
+.pending-requests ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.pending-requests li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 0;
+}
+
+.pending-requests button {
+    flex: 0 0 auto;
+    min-width: auto;
+    padding: 0.4rem 1rem;
 }
 
 .alert {
