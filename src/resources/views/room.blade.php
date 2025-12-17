@@ -18,6 +18,7 @@
                 <strong>Ask to join</strong>
                 <p>Waiting for the host to allow you in.</p>
             </div>
+            <div class="status" id="call-status">Choose video or audio-only when you are ready to join.</div>
             <div class="video-grid">
                 <video id="localVideo" autoplay playsinline muted></video>
                 <video id="remoteVideo" autoplay playsinline></video>

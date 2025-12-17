@@ -220,7 +220,7 @@
             refreshVideoButtonState();
         } catch (error) {
             console.error(error);
-            setStatus('Unable to access camera or microphone.');
+            setStatus('Unable to access microphone or camera.');
         }
     }
 
@@ -230,7 +230,9 @@
         peerConnection.ontrack = event => {
             if (!remoteStream) {
                 remoteStream = new MediaStream();
-                remoteVideo.srcObject = remoteStream;
+                if (remoteVideo) {
+                    remoteVideo.srcObject = remoteStream;
+                }
             }
             remoteStream.addTrack(event.track);
         };
@@ -304,7 +306,9 @@
         }
 
         remoteStream = null;
-        remoteVideo.srcObject = null;
+        if (remoteVideo) {
+            remoteVideo.srcObject = null;
+        }
 
         if (disconnectSocket && socket) {
             socket.disconnect();
