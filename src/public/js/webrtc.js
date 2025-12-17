@@ -19,6 +19,8 @@
     const hostJoinAlert = document.querySelector('[data-join-alert]');
     const hostJoinAlertText = hostJoinAlert?.querySelector('[data-join-alert-text]');
     const hostAlertApproveButton = hostJoinAlert?.querySelector('[data-action="approve-alert-request"]');
+    const accessGate = document.querySelector('[data-access-gate]');
+    const requestAccessButton = document.querySelector('[data-action="request-access"]');
 
     let socket;
     let peerConnection;
@@ -29,6 +31,9 @@
     let hasActiveCall = false;
     let isHost = !!config.isHost;
     let isAudioOnlyMode = false;
+    let hasRequestedAccess = isHost;
+    let hasAccess = isHost;
+    let socketInitialized = false;
 
     const pendingApprovals = new Map();
 
@@ -36,6 +41,16 @@
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' }
     ];
+
+    function updateStartButtons() {
+        const allowed = hasAccess;
+        if (startButton) {
+            startButton.disabled = !allowed;
+        }
+        if (startAudioButton) {
+            startAudioButton.disabled = !allowed;
+        }
+    }
 
     function setStatus(message) {
         if (statusEl) {
@@ -70,6 +85,7 @@
             hostRequestsPanel.hidden = true;
         }
         hideHostRequestNotice();
+        updateHostAlert();
     }
 
     function showHostRequestNotice(text) {
@@ -99,10 +115,10 @@
             }
             return;
         }
-        const [nextId, name] = pendingApprovals.entries().next().value;
+        const [nextId] = pendingApprovals.entries().next().value;
         hostJoinAlert.hidden = false;
         if (hostJoinAlertText) {
-            hostJoinAlertText.textContent = `${name} wants to join.`;
+            hostJoinAlertText.textContent = 'Someone wants to join.';
         }
         if (hostAlertApproveButton) {
             hostAlertApproveButton.dataset.socket = nextId;
@@ -121,18 +137,18 @@
         if (!request?.id) {
             return;
         }
-        const name = request.name || 'Guest';
+        const label = 'Someone';
         if (hostRequestsList && hostRequestsPanel) {
             removeHostRequest(request.id);
             hostRequestsPanel.hidden = false;
             const item = document.createElement('li');
             item.dataset.requestId = request.id;
-            item.innerHTML = `<span>${name}</span>
+            item.innerHTML = `<span>${label} is waiting</span>
                 <button type="button" data-action="approve-request" data-socket="${request.id}">Allow</button>`;
             hostRequestsList.appendChild(item);
         }
-        pendingApprovals.set(request.id, name);
-        showHostRequestNotice(`${name} wants to join.`);
+        pendingApprovals.set(request.id, label);
+        showHostRequestNotice('Someone wants to join.');
         updateHostAlert();
     }
 
@@ -150,7 +166,18 @@
         updateHostAlert();
     }
 
+    function ensureSocket() {
+        if (socketInitialized) {
+            return;
+        }
+        initSocket();
+    }
+
     function initSocket() {
+        if (socketInitialized) {
+            return;
+        }
+        socketInitialized = true;
         socket = io('/', {
             path: '/socket.io',
             query: { room: config.room, isHost: config.isHost ? '1' : '0' }
@@ -174,10 +201,15 @@
             if (isHost) {
                 hideWaitingApproval();
                 setStatus('Connected. Waiting for participants…');
+                hasAccess = true;
+                updateStartButtons();
+                hideAccessGate();
                 updateHostAlert();
             } else {
                 clearHostRequests();
-                if (hasActiveCall) {
+                hasAccess = false;
+                updateStartButtons();
+                if (hasRequestedAccess) {
                     showWaitingApproval('Waiting for host approval…');
                     setStatus('Ask to join. Waiting for host approval…');
                 }
@@ -234,11 +266,11 @@
                 return;
             }
             addHostRequest(request);
-            setStatus('A participant is requesting to join.');
+            setStatus('Someone is requesting to join.');
         });
 
         socket.on('waiting-approval', () => {
-            if (isHost) {
+            if (isHost || hasAccess) {
                 return;
             }
             showWaitingApproval('Waiting for host approval…');
@@ -246,9 +278,11 @@
         });
 
         socket.on('join-approved', () => {
+            hasAccess = true;
+            hideAccessGate();
             hideWaitingApproval();
-            setStatus('Host approved you. Connecting…');
-            ensurePeerConnection();
+            updateStartButtons();
+            setStatus('Host approved you. Start your call when you are ready.');
         });
 
         socket.on('promoted-host', () => {
@@ -266,6 +300,17 @@
 
     async function startCall(options = {}) {
         if (hasActiveCall) {
+            return;
+        }
+
+        if (!hasAccess) {
+            if (!hasRequestedAccess) {
+                showAccessGate();
+                setStatus('Ask to join before starting a call.');
+            } else {
+                showWaitingApproval('Waiting for host approval…');
+                setStatus('Ask to join. Waiting for host approval…');
+            }
             return;
         }
 
@@ -288,20 +333,11 @@
                 localVideo.hidden = true;
             }
 
-            const shouldDelayConnection = !isHost;
-
-            if (!shouldDelayConnection) {
-                ensurePeerConnection();
-            }
-
-            initSocket();
+            ensureSocket();
+            ensurePeerConnection();
             setStatus(wantsVideo ? 'Media ready. Share the link so someone can join.' : 'Audio-only mode ready. Share the link so someone can join.');
             hasActiveCall = true;
             refreshVideoButtonState();
-            if (!isHost) {
-                showWaitingApproval('Waiting for host approval…');
-                setStatus('Ask to join. Waiting for host approval…');
-            }
         } catch (error) {
             console.error(error);
             setStatus('Unable to access camera or microphone.');
@@ -471,9 +507,43 @@
     });
 
     hostAlertApproveButton?.addEventListener('click', () => {
-        const socketId = hostAlertApproveButton.getAttribute('data-socket');
+        const socketId = hostAlertApproveButton?.getAttribute('data-socket');
         approveParticipant(socketId);
     });
+
+    requestAccessButton?.addEventListener('click', () => {
+        if (hasRequestedAccess) {
+            return;
+        }
+        hasRequestedAccess = true;
+        requestAccessButton.disabled = true;
+        hideAccessGate();
+        showWaitingApproval('Waiting for host approval…');
+        setStatus('Ask to join. Waiting for host approval…');
+        updateStartButtons();
+        ensureSocket();
+    });
+
+    function hideAccessGate() {
+        if (accessGate) {
+            accessGate.hidden = true;
+        }
+    }
+
+    function showAccessGate() {
+        if (accessGate) {
+            accessGate.hidden = false;
+        }
+    }
+
+    if (isHost) {
+        hasAccess = true;
+        updateStartButtons();
+        hideAccessGate();
+    } else {
+        updateStartButtons();
+        showAccessGate();
+    }
 
     window.addEventListener('beforeunload', () => {
         endCall(true);

@@ -44,6 +44,16 @@
             </div>
         </div>
     </div>
+
+    @if (!($isHost ?? false))
+        <div class="join-gate" data-access-gate>
+            <div class="join-gate-card">
+                <h2>Ask to join</h2>
+                <p>Click the button below to let the host know you’d like to enter this room.</p>
+                <button type="button" data-action="request-access">Ask to join</button>
+            </div>
+        </div>
+    @endif
 @endsection
 
 @push('scripts')
