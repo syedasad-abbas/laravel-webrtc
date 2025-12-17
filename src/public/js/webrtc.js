@@ -24,7 +24,7 @@
     let isInitiator = false;
     let readyForOffer = false;
     let hasActiveCall = false;
-    let isHost = false;
+    let isHost = !!config.isHost;
     let isAudioOnlyMode = false;
 
     const iceServers = [
@@ -94,7 +94,7 @@
     function initSocket() {
         socket = io('/', {
             path: '/socket.io',
-            query: { room: config.room }
+            query: { room: config.room, isHost: config.isHost ? '1' : '0' }
         });
 
         socket.on('connect', () => {
@@ -107,6 +107,7 @@
 
         socket.on('host', payload => {
             isHost = !!payload?.isHost;
+            config.isHost = isHost;
             if (!isHost) {
                 clearHostRequests();
             }
@@ -218,9 +219,13 @@
             setStatus(wantsVideo ? 'Media ready. Share the link so someone can join.' : 'Audio-only mode ready. Share the link so someone can join.');
             hasActiveCall = true;
             refreshVideoButtonState();
+            if (!isHost) {
+                showWaitingApproval('Waiting for host approval…');
+                setStatus('Ask to join. Waiting for host approval…');
+            }
         } catch (error) {
             console.error(error);
-            setStatus('Unable to access microphone or camera.');
+            setStatus('Unable to access camera or microphone.');
         }
     }
 
@@ -230,9 +235,7 @@
         peerConnection.ontrack = event => {
             if (!remoteStream) {
                 remoteStream = new MediaStream();
-                if (remoteVideo) {
-                    remoteVideo.srcObject = remoteStream;
-                }
+                remoteVideo.srcObject = remoteStream;
             }
             remoteStream.addTrack(event.track);
         };
@@ -306,9 +309,7 @@
         }
 
         remoteStream = null;
-        if (remoteVideo) {
-            remoteVideo.srcObject = null;
-        }
+        remoteVideo.srcObject = null;
 
         if (disconnectSocket && socket) {
             socket.disconnect();

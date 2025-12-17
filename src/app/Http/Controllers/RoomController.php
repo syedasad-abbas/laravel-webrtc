@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -31,6 +32,8 @@ class RoomController extends Controller
             $room = 'room-' . Str::lower(Str::random(6));
         }
 
+        $this->rememberHostRoom($room);
+
         return redirect()->route('rooms.show', ['code' => $room]);
     }
 
@@ -53,9 +56,17 @@ class RoomController extends Controller
     {
         $room = $this->sanitizeRoom($code) ?: $code;
 
+        $isHost = $this->isHostRoom($room);
+
+        if ($isHost) {
+            $this->rememberHostRoom($room);
+        }
+
         return view('room', [
             'room' => $room,
             'appName' => config('app.name', 'Laravel WebRTC'),
+            'isHost' => $isHost,
+            'hideAuthActions' => ! $isHost,
         ]);
     }
 
@@ -70,5 +81,28 @@ class RoomController extends Controller
             ->replaceMatches('/[^a-z0-9-]/', '');
 
         return (string) $clean;
+    }
+
+    private function rememberHostRoom(string $room): void
+    {
+        if (! auth()->check()) {
+            return;
+        }
+
+        Cache::put($this->hostCacheKey($room), auth()->id(), now()->addHours(12));
+    }
+
+    private function isHostRoom(string $room): bool
+    {
+        if (! auth()->check()) {
+            return false;
+        }
+
+        return Cache::get($this->hostCacheKey($room)) === auth()->id();
+    }
+
+    private function hostCacheKey(string $room): string
+    {
+        return 'room-host:' . $room;
     }
 }

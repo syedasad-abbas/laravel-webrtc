@@ -8,17 +8,18 @@
                     <h1>{{ $appName }}</h1>
                     <p class="muted">Room: <span id="room-code">{{ $room }}</span></p>
                 </div>
-                <div class="share">
-                    <input type="text" readonly value="{{ url()->current() }}" id="room-link">
-                    <button type="button" data-action="copy-link">Copy link</button>
-                </div>
+                @if ($isHost ?? false)
+                    <div class="share">
+                        <input type="text" readonly value="{{ url()->current() }}" id="room-link">
+                        <button type="button" data-action="copy-link">Copy link</button>
+                    </div>
+                @endif
             </div>
             <div class="status" id="call-status">Choose video or audio-only when you are ready.</div>
             <div class="call-alert" data-waiting-approval hidden>
                 <strong>Ask to join</strong>
                 <p>Waiting for the host to allow you in.</p>
             </div>
-            <div class="status" id="call-status">Choose video or audio-only when you are ready to join.</div>
             <div class="video-grid">
                 <video id="localVideo" autoplay playsinline muted></video>
                 <video id="remoteVideo" autoplay playsinline></video>
@@ -42,7 +43,8 @@
     <script>
         window.meetingConfig = {
             room: @json($room),
-            copySuccessText: 'Link copied to clipboard'
+            copySuccessText: 'Link copied to clipboard',
+            isHost: @json($isHost ?? false)
         };
     </script>
     <script src="/socket.io/socket.io.js"></script>

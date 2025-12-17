@@ -14,17 +14,19 @@
             <a href="{{ route('home') }}" class="brand">{{ config('app.name', 'Laravel WebRTC') }}</a>
             <div class="header-meta">
                 <span class="tagline">Minimal WebRTC meetings</span>
-                <div class="auth-actions">
-                    @auth
-                        <span class="current-user">{{ auth()->user()->name }}</span>
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
-                            <button type="submit" class="link-button">Log out</button>
-                        </form>
-                    @else
-                        <a href="{{ route('login') }}" class="link-button">Log in</a>
-                    @endauth
-                </div>
+                @if (!($hideAuthActions ?? false))
+                    <div class="auth-actions">
+                        @auth
+                            <span class="current-user">{{ auth()->user()->name }}</span>
+                            <form method="POST" action="{{ route('logout') }}">
+                                @csrf
+                                <button type="submit" class="link-button">Log out</button>
+                            </form>
+                        @else
+                            <a href="{{ route('login') }}" class="link-button">Log in</a>
+                        @endauth
+                    </div>
+                @endif
             </div>
         </div>
     </header>

@@ -19,7 +19,8 @@ function getOrCreateRoom(room) {
   if (!rooms.has(room)) {
     rooms.set(room, {
       hostId: null,
-      members: new Map()
+      members: new Map(),
+      pending: new Set()
     });
   }
 
@@ -59,19 +60,49 @@ function requestApproval(room, participant) {
     return;
   }
 
+  state.pending.add(participant.id);
+  io.to(participant.id).emit('waiting-approval');
+
   const hostId = state.hostId;
   const hostSocket = hostId ? io.sockets.sockets.get(hostId) : null;
 
   if (!hostSocket) {
-    participant.approved = true;
-    io.to(participant.id).emit('join-approved');
-    emitReadyIfPossible(room);
-    emitParticipants(room);
     return;
   }
 
   io.to(hostId).emit('join-request', { id: participant.id, name: participant.name });
-  io.to(participant.id).emit('waiting-approval');
+}
+
+function broadcastHostStatus(room) {
+  const state = rooms.get(room);
+  if (!state) {
+    return;
+  }
+
+  state.members.forEach(member => {
+    io.to(member.id).emit('host', { isHost: state.hostId === member.id });
+  });
+}
+
+function notifyHostOfPending(room) {
+  const state = rooms.get(room);
+  if (!state?.hostId) {
+    return;
+  }
+
+  const hostSocket = io.sockets.sockets.get(state.hostId);
+  if (!hostSocket) {
+    return;
+  }
+
+  state.pending.forEach(id => {
+    const participant = state.members.get(id);
+    if (participant) {
+      io.to(state.hostId).emit('join-request', { id: participant.id, name: participant.name });
+    } else {
+      state.pending.delete(id);
+    }
+  });
 }
 
 function promoteNextHost(room) {
@@ -90,16 +121,24 @@ function promoteNextHost(room) {
     }
   }
 
+  if (next) {
+    state.pending.delete(next.id);
+  }
+
   state.hostId = next ? next.id : null;
 
   if (state.hostId) {
+    broadcastHostStatus(room);
     io.to(state.hostId).emit('promoted-host');
-    io.to(state.hostId).emit('host', { isHost: true });
+    notifyHostOfPending(room);
+  } else {
+    broadcastHostStatus(room);
   }
 }
 
 io.on('connection', socket => {
   const room = socket.handshake.query.room;
+  const wantsHostRole = socket.handshake.query.isHost === '1';
   const name = (socket.handshake.query.name || '').toString().trim().slice(0, 60) || 'Guest';
 
   if (!room) {
@@ -114,18 +153,24 @@ io.on('connection', socket => {
   const member = { id: socket.id, name, approved: false };
   state.members.set(socket.id, member);
 
-  const currentHost = state.hostId && io.sockets.sockets.get(state.hostId);
-  if (!currentHost) {
+  if (wantsHostRole) {
     state.hostId = socket.id;
+    broadcastHostStatus(room);
+  }
+
+  const isCurrentHost = state.hostId === socket.id;
+
+  if (isCurrentHost) {
     member.approved = true;
     socket.emit('host', { isHost: true });
     socket.emit('join-approved');
+    notifyHostOfPending(room);
   } else {
     socket.emit('host', { isHost: false });
     requestApproval(room, member);
   }
 
-  const isInitiator = member.approved && state.members.size === 1;
+  const isInitiator = member.approved && getApprovedMembers(state).length === 1;
   socket.emit('init', { isInitiator });
 
   emitParticipants(room);
@@ -146,6 +191,7 @@ io.on('connection', socket => {
     }
 
     target.approved = true;
+    state.pending.delete(targetId);
     io.to(targetId).emit('join-approved');
     io.to(state.hostId).emit('join-request-resolved', { id: targetId });
     emitParticipants(room);
@@ -183,6 +229,7 @@ io.on('connection', socket => {
     const member = currentState.members.get(socket.id);
     const wasHost = currentState.hostId === socket.id;
     const wasApproved = member?.approved;
+    currentState.pending.delete(socket.id);
     currentState.members.delete(socket.id);
 
     if (!currentState.members.size) {
