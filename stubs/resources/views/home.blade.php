@@ -24,7 +24,7 @@
                     maxlength="40"
                     required
                 >
-                <button type="submit">Create meeting</button>
+                <button type="submit" formtarget="_blank">Create meeting</button>
             </form>
         </div>
     </section>
@@ -51,7 +51,7 @@
                     maxlength="40"
                     required
                 >
-                <button type="submit">Join</button>
+                <button type="submit" formtarget="_blank">Join</button>
             </form>
         </div>
     </section>

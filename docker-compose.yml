@@ -16,10 +16,10 @@ services:
     environment:
       APP_ENV: local
       APP_DEBUG: ${APP_DEBUG:-true}
-      APP_URL: ${APP_URL:-https://192.168.1.74:8443}
+      APP_URL: ${APP_URL:-https://192.168.18.47:8443}
       APP_PORT: ${APP_PORT:-8443}
       LOG_CHANNEL: stderr
-      APP_DOMAIN: ${APP_DOMAIN:-192.168.1.74}
+      APP_DOMAIN: ${APP_DOMAIN:-192.168.18.47}
       DB_HOST: ${DB_HOST:-mariadb}
       DB_DATABASE: ${DB_DATABASE:-webrtc}
       DB_USERNAME: ${DB_USERNAME:-webrtc}

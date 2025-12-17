@@ -9,6 +9,7 @@
     const videoButton = document.querySelector('[data-action="toggle-video"]');
     const hangupButton = document.querySelector('[data-action="hangup"]');
     const copyButton = document.querySelector('[data-action="copy-link"]');
+    const startAudioButton = document.querySelector('[data-action="start-audio-call"]');
     const statusEl = document.getElementById('call-status');
     const localVideo = document.getElementById('localVideo');
     const remoteVideo = document.getElementById('remoteVideo');
@@ -92,22 +93,38 @@
         });
     }
 
-    async function startCall() {
+    async function startCall(options = {}) {
         if (hasActiveCall) {
             return;
         }
 
+        const wantsVideo = options.video !== false;
+
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            localVideo.srcObject = localStream;
+            localStream = await navigator.mediaDevices.getUserMedia({
+                video: wantsVideo,
+                audio: true
+            });
+
+            if (wantsVideo) {
+                if (localVideo) {
+                    localVideo.hidden = false;
+                    localVideo.srcObject = localStream;
+                }
+            } else if (localVideo) {
+                localVideo.srcObject = null;
+                localVideo.hidden = true;
+            }
+
             createPeerConnection();
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
             initSocket();
-            setStatus('Media ready. Share the link so someone can join.');
+            setStatus(wantsVideo ? 'Media ready. Share the link so someone can join.' : 'Audio-only mode ready. Share the link so someone can join.');
             hasActiveCall = true;
+            refreshVideoButtonState();
         } catch (error) {
             console.error(error);
-            setStatus('Unable to access camera or microphone.');
+            setStatus('Unable to access microphone or camera.');
         }
     }
 
@@ -117,7 +134,9 @@
         peerConnection.ontrack = event => {
             if (!remoteStream) {
                 remoteStream = new MediaStream();
-                remoteVideo.srcObject = remoteStream;
+                if (remoteVideo) {
+                    remoteVideo.srcObject = remoteStream;
+                }
             }
             remoteStream.addTrack(event.track);
         };
@@ -165,7 +184,7 @@
         localStream.getVideoTracks().forEach(track => {
             track.enabled = !enabled;
         });
-        videoButton.textContent = enabled ? 'Start video' : 'Stop video';
+        refreshVideoButtonState();
     }
 
     function endCall(disconnectSocket = true) {
@@ -181,14 +200,20 @@
 
         localStream?.getTracks().forEach(track => track.stop());
         localStream = null;
-        localVideo.srcObject = null;
+        if (localVideo) {
+            localVideo.srcObject = null;
+            localVideo.hidden = false;
+        }
 
         remoteStream = null;
-        remoteVideo.srcObject = null;
+        if (remoteVideo) {
+            remoteVideo.srcObject = null;
+        }
 
         if (disconnectSocket && socket) {
             socket.disconnect();
         }
+        refreshVideoButtonState();
     }
 
     async function copyLink() {
@@ -201,7 +226,31 @@
         }
     }
 
-    startButton?.addEventListener('click', startCall);
+    function refreshVideoButtonState() {
+        if (!videoButton) {
+            return;
+        }
+
+        const tracks = localStream?.getVideoTracks() ?? [];
+
+        if (!tracks.length) {
+            if (hasActiveCall) {
+                videoButton.textContent = 'Camera off';
+                videoButton.disabled = true;
+            } else {
+                videoButton.textContent = 'Stop video';
+                videoButton.disabled = false;
+            }
+            return;
+        }
+
+        const enabled = tracks.every(track => track.enabled);
+        videoButton.textContent = enabled ? 'Stop video' : 'Start video';
+        videoButton.disabled = false;
+    }
+
+    startButton?.addEventListener('click', () => startCall({ video: true }));
+    startAudioButton?.addEventListener('click', () => startCall({ video: false }));
     audioButton?.addEventListener('click', toggleAudio);
     videoButton?.addEventListener('click', toggleVideo);
     hangupButton?.addEventListener('click', () => {

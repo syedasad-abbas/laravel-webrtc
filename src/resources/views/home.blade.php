@@ -15,7 +15,7 @@
                     placeholder="e.g. product-sync"
                     maxlength="40"
                 >
-                <button type="submit">Create meeting</button>
+                <button type="submit" formtarget="_blank">Create meeting</button>
             </form>
         </div>
     </section>
@@ -34,7 +34,7 @@
                     placeholder="room code"
                     required
                 >
-                <button type="submit">Join</button>
+                <button type="submit" formtarget="_blank">Join</button>
             </form>
         </div>
     </section>
