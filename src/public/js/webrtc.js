@@ -16,6 +16,8 @@
     const waitingApprovalBanner = document.querySelector('[data-waiting-approval]');
     const hostRequestsPanel = document.querySelector('[data-host-requests]');
     const hostRequestsList = document.querySelector('[data-request-list]');
+    const hostJoinAlert = document.querySelector('[data-join-alert]');
+    const hostJoinAlertText = hostJoinAlert?.querySelector('[data-join-alert-text]');
 
     let socket;
     let peerConnection;
@@ -56,11 +58,30 @@
     }
 
     function clearHostRequests() {
-        if (hostRequestsList) {
-            hostRequestsList.innerHTML = '';
+        if (!hostRequestsList) {
+            hideHostRequestNotice();
+            return;
         }
+        hostRequestsList.innerHTML = '';
         if (hostRequestsPanel) {
             hostRequestsPanel.hidden = true;
+        }
+        hideHostRequestNotice();
+    }
+
+    function showHostRequestNotice(text) {
+        if (!hostJoinAlert) {
+            return;
+        }
+        hostJoinAlert.hidden = false;
+        if (hostJoinAlertText && text) {
+            hostJoinAlertText.textContent = text;
+        }
+    }
+
+    function hideHostRequestNotice() {
+        if (hostJoinAlert) {
+            hostJoinAlert.hidden = true;
         }
     }
 
@@ -76,6 +97,7 @@
         item.innerHTML = `<span>${name}</span>
             <button type="button" data-action="approve-request" data-socket="${request.id}">Allow</button>`;
         hostRequestsList.appendChild(item);
+        showHostRequestNotice(`${name} wants to join.`);
     }
 
     function removeHostRequest(id) {
@@ -88,6 +110,7 @@
         }
         if (!hostRequestsList.children.length && hostRequestsPanel) {
             hostRequestsPanel.hidden = true;
+            hideHostRequestNotice();
         }
     }
 
@@ -174,6 +197,7 @@
         socket.on('join-approved', () => {
             hideWaitingApproval();
             setStatus('Host approved you. Connecting…');
+            ensurePeerConnection();
         });
 
         socket.on('promoted-host', () => {
@@ -213,8 +237,12 @@
                 localVideo.hidden = true;
             }
 
-            createPeerConnection();
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            const shouldDelayConnection = !isHost;
+
+            if (!shouldDelayConnection) {
+                ensurePeerConnection();
+            }
+
             initSocket();
             setStatus(wantsVideo ? 'Media ready. Share the link so someone can join.' : 'Audio-only mode ready. Share the link so someone can join.');
             hasActiveCall = true;
@@ -227,6 +255,21 @@
             console.error(error);
             setStatus('Unable to access camera or microphone.');
         }
+    }
+
+    function ensurePeerConnection() {
+        if (peerConnection) {
+            return;
+        }
+        createPeerConnection();
+        attachLocalTracks();
+    }
+
+    function attachLocalTracks() {
+        if (!localStream || !peerConnection) {
+            return;
+        }
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
     }
 
     function createPeerConnection() {
@@ -316,6 +359,7 @@
         }
 
         hideWaitingApproval();
+        clearHostRequests();
         isAudioOnlyMode = false;
         refreshVideoButtonState();
     }

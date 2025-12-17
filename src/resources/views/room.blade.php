@@ -20,6 +20,12 @@
                 <strong>Ask to join</strong>
                 <p>Waiting for the host to allow you in.</p>
             </div>
+            @if ($isHost ?? false)
+                <div class="call-alert" data-join-alert hidden>
+                    <strong>Join request</strong>
+                    <p data-join-alert-text>A participant is waiting for approval.</p>
+                </div>
+            @endif
             <div class="video-grid">
                 <video id="localVideo" autoplay playsinline muted></video>
                 <video id="remoteVideo" autoplay playsinline></video>
