@@ -124,8 +124,7 @@
             if (isHost) {
                 setStatus('Connected. Waiting for participants…');
             } else {
-                showWaitingApproval('Waiting for host approval…');
-                setStatus('Ask to join. Waiting for host approval…');
+                setStatus('Connected. Waiting for host approval…');
             }
         });
 
@@ -136,8 +135,15 @@
         socket.on('host', payload => {
             isHost = !!payload?.isHost;
             config.isHost = isHost;
-            if (!isHost) {
+            if (isHost) {
+                hideWaitingApproval();
+                setStatus('Connected. Waiting for participants…');
+            } else {
                 clearHostRequests();
+                if (hasActiveCall) {
+                    showWaitingApproval('Waiting for host approval…');
+                    setStatus('Ask to join. Waiting for host approval…');
+                }
             }
         });
 
@@ -195,6 +201,9 @@
         });
 
         socket.on('waiting-approval', () => {
+            if (isHost) {
+                return;
+            }
             showWaitingApproval('Waiting for host approval…');
             setStatus('Ask to join. Waiting for host approval…');
         });
