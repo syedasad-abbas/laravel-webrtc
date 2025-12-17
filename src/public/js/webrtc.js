@@ -121,7 +121,12 @@
         });
 
         socket.on('connect', () => {
-            setStatus('Connected. Waiting for participants…');
+            if (isHost) {
+                setStatus('Connected. Waiting for participants…');
+            } else {
+                showWaitingApproval('Waiting for host approval…');
+                setStatus('Ask to join. Waiting for host approval…');
+            }
         });
 
         socket.on('init', payload => {
@@ -140,7 +145,7 @@
             readyForOffer = true;
             if (isInitiator) {
                 makeOffer();
-            } else {
+            } else if (isHost) {
                 setStatus('Another participant joined. Preparing connection…');
             }
         });
@@ -176,7 +181,7 @@
         });
 
         socket.on('participants', payload => {
-            if (payload?.count) {
+            if (isHost && payload?.count) {
                 setStatus(`Participants in room: ${payload.count}`);
             }
         });
