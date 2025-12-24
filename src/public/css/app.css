@@ -172,70 +172,6 @@ button.link-button:hover {
     font-weight: 500;
 }
 
-.call-alert {
-    margin: 1rem 0;
-    padding: 1rem;
-    border-radius: 12px;
-    background: #fff7ed;
-    border: 1px solid #fed7aa;
-    color: #9a3412;
-}
-
-.call-alert strong {
-    display: block;
-    margin-bottom: 0.2rem;
-}
-
-.host-alert {
-    border-color: #bfdbfe;
-    background: #eff6ff;
-}
-
-.host-alert-action {
-    margin-top: 0.5rem;
-    border: none;
-    border-radius: 999px;
-    padding: 0.5rem 1.2rem;
-    background: #2563eb;
-    color: #fff;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.host-alert-action:hover {
-    background: #1d4ed8;
-}
-
-.join-gate {
-    position: fixed;
-    inset: 0;
-    background: rgba(16, 24, 40, 0.75);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    padding: 1rem;
-}
-
-.join-gate-card {
-    background: #fff;
-    border-radius: 20px;
-    padding: 2rem;
-    max-width: 400px;
-    width: 100%;
-    text-align: center;
-    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.3);
-}
-
-.join-gate-card h2 {
-    margin-top: 0;
-}
-
-.join-gate-card button {
-    width: 100%;
-    margin-top: 1rem;
-}
-
 .video-grid {
     display: grid;
     gap: 1rem;
@@ -262,39 +198,52 @@ video {
     min-width: 120px;
 }
 
-.pending-requests {
+.dialer-panel {
     margin-top: 1.5rem;
-    padding: 1rem;
-    border: 1px dashed #d0d5dd;
-    border-radius: 12px;
-    background: #f9fafb;
+    padding: 1.25rem;
+    border: 1px solid #e4e7ec;
+    border-radius: 14px;
+    background: #fdfdfd;
 }
 
-.pending-requests h3 {
-    margin-top: 0;
-}
-
-.pending-requests ul {
-    list-style: none;
-    padding: 0;
+.dialer-panel h3 {
     margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
 }
 
-.pending-requests li {
+.dialer-panel-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
     gap: 1rem;
-    padding: 0.5rem 0;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
 }
 
-.pending-requests button {
-    flex: 0 0 auto;
-    min-width: auto;
-    padding: 0.4rem 1rem;
+.dialer-status {
+    margin: 0;
+    font-weight: 600;
+}
+
+.dialer-status.error {
+    color: #b42318;
+}
+
+.dialer-form label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.dialer-inputs {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+
+.dialer-inputs input {
+    flex: 1;
+    min-width: 180px;
 }
 
 .alert {

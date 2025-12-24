@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'pstn' => [
+        'enabled' => (bool) env('PSTN_DIALER_ENABLED', false),
+        'url' => env('PSTN_PROVIDER_URL'),
+        'token' => env('PSTN_PROVIDER_TOKEN'),
+        'from' => env('PSTN_FROM_NUMBER'),
+        'callback' => env('PSTN_CALLBACK_URL'),
+        'timeout' => (int) env('PSTN_PROVIDER_TIMEOUT', 10),
+    ],
+
 ];

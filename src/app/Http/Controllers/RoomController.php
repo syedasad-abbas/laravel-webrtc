@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\View\View;
@@ -70,6 +71,7 @@ class RoomController extends Controller
             'appName' => config('app.name', 'Laravel WebRTC'),
             'isHost' => $isHost,
             'hideAuthActions' => ! $isHost,
+            'dialer' => $isHost ? $this->dialerConfig($room) : ['enabled' => false],
         ]);
     }
 
@@ -109,6 +111,13 @@ class RoomController extends Controller
         $payload['host'] = array_filter($payload['host'], fn ($value) => ! empty($value));
         $payload = array_filter($payload, fn ($value) => $value !== null && $value !== '' && $value !== []);
 
+        Log::info('PSTN dial-out requested', [
+            'room' => $room,
+            'host_id' => auth()->id(),
+            'to' => $data['phone'],
+            'provider_url' => $settings['url'],
+        ]);
+
         $headers = [
             'Accept' => 'application/json',
         ];
@@ -123,6 +132,11 @@ class RoomController extends Controller
                 ->post($settings['url'], $payload);
         } catch (\Throwable $exception) {
             report($exception);
+            Log::error('PSTN dial provider unreachable', [
+                'room' => $room,
+                'to' => $data['phone'],
+                'message' => $exception->getMessage(),
+            ]);
 
             return response()->json([
                 'message' => 'Unable to reach the dial-out provider. Please try again.',
@@ -131,6 +145,12 @@ class RoomController extends Controller
 
         if ($response->failed()) {
             $body = $response->json() ?: $response->body();
+            Log::warning('PSTN dial provider rejected request', [
+                'room' => $room,
+                'to' => $data['phone'],
+                'status' => $response->status(),
+                'provider' => $body,
+            ]);
 
             return response()->json([
                 'message' => 'The dial-out provider rejected the request.',
@@ -139,12 +159,29 @@ class RoomController extends Controller
         }
 
         $body = $response->json();
+        Log::info('PSTN dial provider accepted request', [
+            'room' => $room,
+            'to' => $data['phone'],
+            'provider' => $body,
+        ]);
 
         return response()->json([
             'status' => 'queued',
             'message' => 'Dial-out request sent to provider.',
             'provider' => $body,
         ]);
+    }
+
+    private function dialerConfig(string $room): array
+    {
+        $settings = config('services.pstn') ?? [];
+        $enabled = ! empty($settings['enabled']) && ! empty($settings['url']);
+
+        return [
+            'enabled' => $enabled,
+            'endpoint' => $enabled ? route('rooms.dial', ['code' => $room]) : null,
+            'incoming' => null,
+        ];
     }
 
     private function sanitizeRoom(?string $value): string

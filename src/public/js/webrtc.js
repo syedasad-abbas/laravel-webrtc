@@ -144,9 +144,15 @@
 
         dialingInProgress = true;
         dialerButton && (dialerButton.disabled = true);
+        const dialingMessage = `Dialing ${phoneNumber}…`;
         setDialerStatus('Sending dial-out request…');
+        setStatus(dialingMessage);
         updateDialerPanelState('Sending dial request…');
         logFlow('Submitting dial-out request', { phone: phoneNumber, label });
+        console.log('[Dialer] Sending PSTN request', {
+            phone: phoneNumber,
+            label: label || null
+        });
 
         fetch(config.dialer.endpoint, {
             method: 'POST',
@@ -170,10 +176,11 @@
             }
             return body;
         }).then(body => {
-            const message = body?.message || `Dialing ${phoneNumber}…`;
+            const message = body?.message || dialingMessage;
             setDialerStatus(message);
             setStatus(message);
             logFlow('Dial-out request accepted', body);
+            console.log('[Dialer] Provider accepted dial request', body);
             if (dialerInput) {
                 dialerInput.value = '';
             }
@@ -182,7 +189,9 @@
             }
         }).catch(error => {
             setDialerStatus(error.message || 'Unable to place the call.', true);
+            setStatus(error.message || 'Dial-out request failed.');
             logFlow('Dial-out request failed', { message: error?.message });
+            console.error('[Dialer] Provider rejected dial request', error);
         }).finally(() => {
             dialingInProgress = false;
             updateDialerPanelState();
