@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webrtc-app-config
+  namespace: laravel-webrtc
+data:
+  APP_ENV: "local"
+  APP_DEBUG: "true"
+  APP_URL: "https://webrtc.local:8443"
+  APP_DOMAIN: "webrtc.local"
+  APP_PORT: "8443"
+  HTTP_PORT: "8080"
+  ENABLE_LETSENCRYPT: "0"
+  LETSENCRYPT_DOMAIN: ""
+  LETSENCRYPT_EMAIL: ""
+  LETSENCRYPT_USE_STAGING: "0"
+  DB_DATABASE: "webrtc"
+  DB_HOST: "mariadb"
+  DB_PORT: "3306"
+  CACHE_STORE: "database"
+  SESSION_DRIVER: "file"
+  QUEUE_CONNECTION: "database"
+  BROADCAST_CONNECTION: "log"
+  FILESYSTEM_DISK: "local"
+  PSTN_DIALER_ENABLED: "true"
+  PSTN_PROVIDER_URL: "http://pstn-mock:4000/dial"
+  PSTN_FROM_NUMBER: "+15551234567"
+  PSTN_CALLBACK_URL: "https://webrtc.local:8443/api/pstn/callback"
+  PSTN_PROVIDER_TIMEOUT: "10"
+  PSTN_MOCK_CALLBACK_DELAY: "1500"
+  PSTN_MOCK_PORT: "9400"

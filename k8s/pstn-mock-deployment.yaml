@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pstn-mock
+  namespace: laravel-webrtc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pstn-mock
+  template:
+    metadata:
+      labels:
+        app: pstn-mock
+    spec:
+      containers:
+        - name: pstn-mock
+          image: your-registry/laravel-webrtc-pstn-mock:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PORT
+              value: "4000"
+            - name: CALLBACK_DELAY_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: webrtc-app-config
+                  key: PSTN_MOCK_CALLBACK_DELAY
+            - name: PROVIDER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: webrtc-app-secrets
+                  key: PSTN_MOCK_TOKEN
+          ports:
+            - containerPort: 4000
+              name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pstn-mock
+  namespace: laravel-webrtc
+spec:
+  selector:
+    app: pstn-mock
+  ports:
+    - port: 4000
+      targetPort: 4000
+      protocol: TCP

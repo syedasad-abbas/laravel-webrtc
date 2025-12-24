@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webrtc-web
+  namespace: laravel-webrtc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webrtc-web
+  template:
+    metadata:
+      labels:
+        app: webrtc-web
+    spec:
+      containers:
+        - name: app
+          image: your-registry/laravel-webrtc-app:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: webrtc-app-config
+            - secretRef:
+                name: webrtc-app-secrets
+          ports:
+            - containerPort: 9000
+              name: php-fpm
+          volumeMounts:
+            - name: app-code
+              mountPath: /var/www/html
+        - name: nginx
+          image: your-registry/laravel-webrtc-nginx:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: webrtc-app-config
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 8443
+              name: https
+          volumeMounts:
+            - name: app-code
+              mountPath: /var/www/html
+            - name: certbot-www
+              mountPath: /var/www/certbot
+            - name: certbot-conf
+              mountPath: /etc/letsencrypt
+            - name: nginx-certs
+              mountPath: /etc/nginx/certs
+        - name: certbot
+          image: certbot/certbot:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: webrtc-app-config
+          env:
+            - name: ENABLE_LETSENCRYPT
+              valueFrom:
+                configMapKeyRef:
+                  name: webrtc-app-config
+                  key: ENABLE_LETSENCRYPT
+            - name: LETSENCRYPT_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: webrtc-app-config
+                  key: LETSENCRYPT_DOMAIN
+            - name: LETSENCRYPT_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: webrtc-app-config
+                  key: LETSENCRYPT_EMAIL
+            - name: LETSENCRYPT_USE_STAGING
+              valueFrom:
+                configMapKeyRef:
+                  name: webrtc-app-config
+                  key: LETSENCRYPT_USE_STAGING
+          command:
+            - /bin/sh
+            - -c
+            - |
+              if [ "${ENABLE_LETSENCRYPT:-0}" != "1" ]; then
+                echo 'LetsEncrypt disabled; certbot idle.' && tail -f /dev/null;
+              fi;
+              trap exit TERM;
+              while :; do
+                if [ -z "${LETSENCRYPT_DOMAIN}" ] || [ -z "${LETSENCRYPT_EMAIL}" ]; then
+                  echo 'LETSENCRYPT_DOMAIN or LETSENCRYPT_EMAIL missing';
+                  sleep 3600;
+                  continue;
+                fi;
+                if [ "${LETSENCRYPT_USE_STAGING:-0}" = "1" ]; then
+                  STAGE_FLAG="--staging";
+                else
+                  STAGE_FLAG="";
+                fi;
+                if [ ! -f /etc/letsencrypt/live/${LETSENCRYPT_DOMAIN}/fullchain.pem ]; then
+                  certbot certonly --non-interactive --agree-tos --email ${LETSENCRYPT_EMAIL} --webroot -w /var/www/certbot -d ${LETSENCRYPT_DOMAIN} $STAGE_FLAG;
+                else
+                  certbot renew --webroot -w /var/www/certbot $STAGE_FLAG;
+                fi;
+                sleep 43200;
+              done
+          volumeMounts:
+            - name: certbot-www
+              mountPath: /var/www/certbot
+            - name: certbot-conf
+              mountPath: /etc/letsencrypt
+      volumes:
+        - name: app-code
+          persistentVolumeClaim:
+            claimName: app-code
+        - name: certbot-conf
+          persistentVolumeClaim:
+            claimName: certbot-conf
+        - name: certbot-www
+          persistentVolumeClaim:
+            claimName: certbot-www
+        - name: nginx-certs
+          emptyDir: {}
