@@ -15,12 +15,22 @@ const io = new Server(server, {
 
 const rooms = new Map();
 
+function logRoom(room, message, detail) {
+  const prefix = room ? `[room:${room}]` : '[room:global]';
+  if (typeof detail !== 'undefined') {
+    console.log(prefix, message, detail);
+  } else {
+    console.log(prefix, message);
+  }
+}
+
 function getOrCreateRoom(room) {
   if (!rooms.has(room)) {
     rooms.set(room, {
       hostId: null,
       members: new Map(),
-      pending: new Set()
+      hasActiveCall: false,
+      readyInterval: null
     });
   }
 
@@ -29,6 +39,10 @@ function getOrCreateRoom(room) {
 
 function getApprovedMembers(state) {
   return Array.from(state.members.values()).filter(member => member.approved);
+}
+
+function getReadyMembers(state) {
+  return Array.from(state.members.values()).filter(member => member.approved && member.ready);
 }
 
 function emitParticipants(room) {
@@ -46,31 +60,54 @@ function emitReadyIfPossible(room) {
   if (!state) {
     return;
   }
-  const approvedMembers = getApprovedMembers(state);
-  if (approvedMembers.length >= 2) {
-    approvedMembers.forEach(member => {
+  const readyMembers = getReadyMembers(state);
+  if (readyMembers.length >= 2 && !state.hasActiveCall) {
+    readyMembers.forEach(member => {
       io.to(member.id).emit('ready');
     });
+    logRoom(room, `ready signal sent to ${readyMembers.length} participant(s)`);
+    ensureReadyInterval(room);
+    return;
   }
+
+  if (readyMembers.length < 2) {
+    state.hasActiveCall = false;
+  }
+  clearReadyInterval(state);
 }
 
-function requestApproval(room, participant) {
+function ensureReadyInterval(room) {
   const state = rooms.get(room);
-  if (!state) {
+  if (!state || state.readyInterval || state.hasActiveCall) {
     return;
   }
 
-  state.pending.add(participant.id);
-  io.to(participant.id).emit('waiting-approval');
+  state.readyInterval = setInterval(() => {
+    const currentState = rooms.get(room);
+    if (!currentState || currentState.hasActiveCall) {
+      clearReadyInterval(currentState);
+      return;
+    }
+    const readyMembers = getReadyMembers(currentState);
+    if (readyMembers.length < 2) {
+      if (currentState) {
+        currentState.hasActiveCall = false;
+      }
+      clearReadyInterval(currentState);
+      return;
+    }
+    readyMembers.forEach(member => {
+      io.to(member.id).emit('ready');
+    });
+    logRoom(room, `repeating ready signal for ${readyMembers.length} participant(s)`);
+  }, 2000);
+}
 
-  const hostId = state.hostId;
-  const hostSocket = hostId ? io.sockets.sockets.get(hostId) : null;
-
-  if (!hostSocket) {
-    return;
+function clearReadyInterval(state) {
+  if (state?.readyInterval) {
+    clearInterval(state.readyInterval);
+    state.readyInterval = null;
   }
-
-  io.to(hostId).emit('join-request', { id: participant.id, name: participant.name });
 }
 
 function broadcastHostStatus(room) {
@@ -81,27 +118,6 @@ function broadcastHostStatus(room) {
 
   state.members.forEach(member => {
     io.to(member.id).emit('host', { isHost: state.hostId === member.id });
-  });
-}
-
-function notifyHostOfPending(room) {
-  const state = rooms.get(room);
-  if (!state?.hostId) {
-    return;
-  }
-
-  const hostSocket = io.sockets.sockets.get(state.hostId);
-  if (!hostSocket) {
-    return;
-  }
-
-  state.pending.forEach(id => {
-    const participant = state.members.get(id);
-    if (participant) {
-      io.to(state.hostId).emit('join-request', { id: participant.id, name: participant.name });
-    } else {
-      state.pending.delete(id);
-    }
   });
 }
 
@@ -117,12 +133,7 @@ function promoteNextHost(room) {
     next = state.members.values().next().value;
     if (next) {
       next.approved = true;
-      io.to(next.id).emit('join-approved');
     }
-  }
-
-  if (next) {
-    state.pending.delete(next.id);
   }
 
   state.hostId = next ? next.id : null;
@@ -130,9 +141,10 @@ function promoteNextHost(room) {
   if (state.hostId) {
     broadcastHostStatus(room);
     io.to(state.hostId).emit('promoted-host');
-    notifyHostOfPending(room);
+    logRoom(room, `host assigned to ${state.hostId}`);
   } else {
     broadcastHostStatus(room);
+    logRoom(room, 'no host available after promotion');
   }
 }
 
@@ -148,60 +160,34 @@ io.on('connection', socket => {
   }
 
   socket.join(room);
+  logRoom(room, `${socket.id} connected`, { wantsHostRole });
 
   const state = getOrCreateRoom(room);
-  const member = { id: socket.id, name, approved: false };
+  const member = { id: socket.id, name, approved: true, ready: false };
   state.members.set(socket.id, member);
 
   if (wantsHostRole) {
     state.hostId = socket.id;
     broadcastHostStatus(room);
+  } else if (!state.hostId) {
+    promoteNextHost(room);
   }
 
   const isCurrentHost = state.hostId === socket.id;
 
-  if (isCurrentHost) {
-    member.approved = true;
-    socket.emit('host', { isHost: true });
-    socket.emit('join-approved');
-    notifyHostOfPending(room);
-  } else {
-    socket.emit('host', { isHost: false });
-    requestApproval(room, member);
-  }
+  socket.emit('host', { isHost: isCurrentHost });
 
   const isInitiator = member.approved && getApprovedMembers(state).length === 1;
   socket.emit('init', { isInitiator });
 
   emitParticipants(room);
-
-  socket.on('approve-join', payload => {
-    if (state.hostId !== socket.id) {
-      return;
-    }
-
-    const targetId = typeof payload === 'string' ? payload : payload?.id;
-    if (!targetId) {
-      return;
-    }
-
-    const target = state.members.get(targetId);
-    if (!target || target.approved) {
-      return;
-    }
-
-    target.approved = true;
-    state.pending.delete(targetId);
-    io.to(targetId).emit('join-approved');
-    io.to(state.hostId).emit('join-request-resolved', { id: targetId });
-    emitParticipants(room);
-    emitReadyIfPossible(room);
-  });
+  emitReadyIfPossible(room);
 
   socket.on('offer', payload => {
     if (!state.members.get(socket.id)?.approved) {
       return;
     }
+    logRoom(room, `offer from ${socket.id}`);
     socket.to(room).emit('offer', payload);
   });
 
@@ -210,35 +196,66 @@ io.on('connection', socket => {
       return;
     }
     socket.to(room).emit('answer', payload);
+    state.hasActiveCall = true;
+    clearReadyInterval(state);
+    logRoom(room, `answer from ${socket.id}`);
   });
 
   socket.on('ice-candidate', candidate => {
     if (!state.members.get(socket.id)?.approved) {
       return;
     }
+    if (candidate) {
+      logRoom(room, `ice-candidate from ${socket.id}`);
+    }
     socket.to(room).emit('ice-candidate', candidate);
   });
 
+  socket.on('call-ready', payload => {
+    const currentMember = state.members.get(socket.id);
+    if (!currentMember || !currentMember.approved) {
+      return;
+    }
+    currentMember.ready = true;
+    state.hasActiveCall = false;
+    logRoom(room, `${socket.id} ready`, { mode: payload?.video === false ? 'audio' : 'video' });
+    emitReadyIfPossible(room);
+  });
+
+  socket.on('call-ended', () => {
+    const currentMember = state.members.get(socket.id);
+    if (!currentMember) {
+      return;
+    }
+    currentMember.ready = false;
+    state.hasActiveCall = false;
+    clearReadyInterval(state);
+    logRoom(room, `${socket.id} ended call`);
+    emitReadyIfPossible(room);
+  });
+
   socket.on('disconnect', () => {
+    logRoom(room, `${socket.id} disconnected`);
     socket.to(room).emit('peer-left');
     const currentState = rooms.get(room);
     if (!currentState) {
       return;
     }
 
-    const member = currentState.members.get(socket.id);
     const wasHost = currentState.hostId === socket.id;
-    const wasApproved = member?.approved;
-    currentState.pending.delete(socket.id);
+    const departing = currentState.members.get(socket.id);
+    if (departing) {
+      departing.ready = false;
+    }
     currentState.members.delete(socket.id);
+    currentState.hasActiveCall = false;
+    clearReadyInterval(currentState);
+    logRoom(room, `${socket.id} cleanup complete`, { remaining: currentState.members.size });
 
     if (!currentState.members.size) {
+      clearReadyInterval(currentState);
       rooms.delete(room);
       return;
-    }
-
-    if (!wasApproved && currentState.hostId && currentState.hostId !== socket.id) {
-      io.to(currentState.hostId).emit('join-request-resolved', { id: socket.id });
     }
 
     if (wasHost) {
@@ -252,5 +269,5 @@ io.on('connection', socket => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Signaling server listening on :${PORT}`);
+  logRoom(null, `Signaling server listening on :${PORT}`);
 });
