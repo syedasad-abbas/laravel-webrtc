@@ -20,3 +20,4 @@ Route::middleware('auth')->group(function () {
 Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')->name('logout');
 
 Route::get('/rooms/{code}', [RoomController::class, 'show'])->name('rooms.show');
+Route::post('/rooms/{code}/dial', [RoomController::class, 'dial'])->name('rooms.dial');
