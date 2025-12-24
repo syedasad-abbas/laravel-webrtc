@@ -53,6 +53,26 @@ This folder contains a fully containerized Laravel application that serves a min
 - **Extending signaling:** The Node service lives in `signaling/`. Modify `server.js` if you want authentication, room limits, or persistence.
 - **TLS & certificates:** By default, the Nginx container issues a self-signed cert. To enable Let’s Encrypt, set `ENABLE_LETSENCRYPT=1`, provide `LETSENCRYPT_DOMAIN`/`LETSENCRYPT_EMAIL`, and ensure `HTTP_PORT=80` is reachable from the public internet. (Let’s Encrypt cannot issue certificates for bare IP addresses, so you’ll need a DNS name if you want a trusted cert.) The companion `certbot` service will request and renew certificates, which are then mounted automatically by Nginx.
 - **Authentication & roles:** A dedicated login page now protects the meeting dashboard. Only registered users stored in MariaDB can create rooms. Administrators can add more users (and choose whether they are standard users or admins) from the dashboard, while the page also shows the currently active users with green presence indicators. Anyone with a room link can still join without signing in.
+- **Browser-to-phone dialer:** Hosts can now bridge a PSTN caller into the meeting directly from the room UI. Configure the provider credentials (`PSTN_DIALER_ENABLED`, `PSTN_PROVIDER_URL`, `PSTN_PROVIDER_TOKEN`, etc.) and the host will see a dial pad that sends the phone number to your telephony provider, who is responsible for ringing the destination and connecting the audio back into this room.
+
+### Local PSTN Mock Provider
+
+To test the browser dialer without a real carrier, the compose stack now includes `pstn-mock`, a tiny Express server that accepts dial requests and optionally pings your callback URL.
+
+1. Ensure the service is running (`docker compose up -d --build` will start it automatically). It exposes `http://localhost:9400` on the host so you can inspect `/health` or `/calls`.
+2. In `src/.env`, set:
+   ```
+   PSTN_DIALER_ENABLED=true
+   PSTN_PROVIDER_URL=http://pstn-mock:4000/dial
+   PSTN_PROVIDER_TOKEN=mock-token   # matches the default in .env/.env.example
+   PSTN_FROM_NUMBER=+15551234567
+   ```
+   Restart `docker compose` (or at least the `app` container) so Laravel picks up the new settings. (Optional) Provide `PSTN_CALLBACK_URL` if you want the mock to fire a fake `call-connected` webhook.
+3. Sign in as the host, start a call, and dial any number. The request will hit the mock provider, which logs it and returns a fake call ID. Visit `http://localhost:9400/calls` to see captured payloads. If you supplied `PSTN_CALLBACK_URL`, the mock will POST a `call-connected` event to that URL after a short delay (default 1.5s).
+
+By default the mock enforces a bearer token. Set both `PSTN_MOCK_TOKEN` and `PSTN_PROVIDER_TOKEN` to the same value (or leave them blank if you want to disable authentication).
+
+Swap the URL/token values when you are ready to talk to a real PSTN vendor—the application flow stays the same.
 
 ### Development Loop
 

@@ -16,10 +16,10 @@ services:
     environment:
       APP_ENV: local
       APP_DEBUG: ${APP_DEBUG:-true}
-      APP_URL: ${APP_URL:-https://192.168.1.74:8443}
+      APP_URL: ${APP_URL:-https://192.168.18.47:8443}
       APP_PORT: ${APP_PORT:-8443}
       LOG_CHANNEL: stderr
-      APP_DOMAIN: ${APP_DOMAIN:-192.168.1.74}
+      APP_DOMAIN: ${APP_DOMAIN:-192.168.18.47}
       DB_HOST: ${DB_HOST:-mariadb}
       DB_DATABASE: ${DB_DATABASE:-webrtc}
       DB_USERNAME: ${DB_USERNAME:-webrtc}
@@ -115,6 +115,19 @@ services:
           sleep 12h;
         done
       "
+    networks:
+      - laravel-webrtc
+
+  pstn-mock:
+    build:
+      context: ./mock-pstn-provider
+    restart: unless-stopped
+    environment:
+      PORT: 4000
+      PROVIDER_TOKEN: ${PSTN_MOCK_TOKEN:-mock-token}
+      CALLBACK_DELAY_MS: ${PSTN_MOCK_CALLBACK_DELAY:-1500}
+    ports:
+      - ${PSTN_MOCK_PORT:-9400}:4000
     networks:
       - laravel-webrtc
 
